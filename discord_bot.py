@@ -16,11 +16,19 @@ from google.auth.transport.requests import Request
 
 # import google.auth
 # from googleapiclient.errors import HttpError
-# from table2ascii import table2ascii, Alignment, PresetStyle
+from table2ascii import table2ascii #, Alignment, PresetStyle
+
+from typing import TypeAlias
+
+context: TypeAlias = commands.Context
 
 SECRETS_FILE = "secrets file path"
 BOT_TOKEN = "bot token here"
-
+SCOPES = [
+    "https://www.googleapis.com/auth/script.projects",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request",
+]
 
 def create_image(links, xnumbers):
     "Look up card images and stitch them together with numbers underneath."
@@ -65,41 +73,14 @@ def get_instance_by_channel(channel):
     return None
 
 
-intents = discord.Intents.default()
-intents.message_content = True
-
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-
-@bot.event
-async def on_ready():
-    print(f"{bot.user.name} has connected to Discord!")
-
-
-@bot.command(name="userid")
-async def userid(ctx):
-    print(ctx.author.id)
-
-
-@bot.command(name="refreshtoken")
-async def refresh_token(ctx):
-    with open("token.json", "w") as token:
-        token.write(" ".join(ctx.message.content.split()[1:]))
-
-
-@bot.command(name="turn")
-async def run_apps_script_function(ctx):
+async def connect_to_sheets(ctx: context):
     xinstance = get_instance_by_channel(ctx.channel.id)
     if xinstance is None:
         await ctx.send("Please use this command in a game thread.")
         return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
+    spreadsheet_id = xinstance[1]
+    deployment_id = xinstance[2]
+    
     # set up credentials
     creds = None
     if os.path.exists("token.json"):
@@ -116,10 +97,40 @@ async def run_apps_script_function(ctx):
     # create a Google Sheets service
     service = build("sheets", "v4", credentials=creds)
 
+    return spreadsheet_id, deployment_id, service
+
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+@bot.event
+async def on_ready():
+    print(f"{bot.user.name} has connected to Discord!")
+
+
+@bot.command(name="userid")
+async def userid(ctx: context):
+    print(ctx.author.id)
+
+
+@bot.command(name="refreshtoken")
+async def refresh_token(ctx: context):
+    with open("token.json", "w") as token:
+        token.write(" ".join(ctx.message.content.split()[1:]))
+
+
+@bot.command(name="turn")
+async def run_apps_script_function(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+
     result = (
         service.spreadsheets()
         .values()
-        .get(spreadsheetId=SPREADSHEET_ID, range="'Play area'!C1")
+        .get(spreadsheetId=spreadsheet_id, range="'Play area'!C1")
         .execute()
     )
     values = result.get("values", [])
@@ -131,36 +142,8 @@ async def run_apps_script_function(ctx):
 
 
 @bot.command(name="submit_card")
-async def submit_card(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def submit_card(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
     request = {
         "function": "button1",
         "parameters": [
@@ -170,7 +153,7 @@ async def submit_card(ctx):
             str(SPREADSHEET_ID),
         ],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -183,46 +166,19 @@ async def submit_card(ctx):
 
 
 @bot.command(name="submit_price")
-async def submit_price(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def submit_price(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "button1",
         "parameters": [
             ctx.message.content.split(" ", 1)[1],
             ctx.author.display_name,
             "Submit festpreis",
-            str(SPREADSHEET_ID),
+            str(spreadsheet_id),
         ],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -233,41 +189,14 @@ async def submit_price(ctx):
 
 
 @bot.command(name="buy_card")
-async def buy_card(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def buy_card(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "button1",
-        "parameters": ["X", ctx.author.display_name, "Buy card", str(SPREADSHEET_ID)],
+        "parameters": ["X", ctx.author.display_name, "Buy card", str(spreadsheet_id)],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -278,46 +207,19 @@ async def buy_card(ctx):
 
 
 @bot.command(name="submit_second")
-async def submit_second(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def submit_second(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "button1",
         "parameters": [
             ctx.message.content.split(" ", 1)[1],
             ctx.author.display_name,
             "Submit second card",
-            str(SPREADSHEET_ID),
+            str(spreadsheet_id),
         ],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -328,41 +230,14 @@ async def submit_second(ctx):
 
 
 @bot.command(name="pass_card")
-async def pass_card(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def pass_card(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "button2",
-        "parameters": [ctx.author.display_name, "Pass on card", str(SPREADSHEET_ID)],
+        "parameters": [ctx.author.display_name, "Pass on card", str(spreadsheet_id)],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -373,41 +248,14 @@ async def pass_card(ctx):
 
 
 @bot.command(name="pass_second")
-async def pass_second(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def pass_second(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "passSecondInDouble",
-        "parameters": [ctx.author.display_name, str(SPREADSHEET_ID)],
+        "parameters": [ctx.author.display_name, str(spreadsheet_id)],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -418,46 +266,19 @@ async def pass_second(ctx):
 
 
 @bot.command(name="open_bid")
-async def open_bid(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def open_bid(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "addBid",
         "parameters": [
             ctx.author.display_name,
             ctx.message.content.split(" ", 1)[1],
             "Callsource - python",
-            str(SPREADSHEET_ID),
+            str(spreadsheet_id),
         ],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -468,42 +289,14 @@ async def open_bid(ctx):
 
 
 @bot.command(name="cash")
-async def get_author_cash(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    author = ctx.author
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def get_author_cash(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "cashpackage",
-        "parameters": [author.display_name, str(SPREADSHEET_ID)],
+        "parameters": [author.display_name, str(spreadsheet_id)],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -526,42 +319,14 @@ async def get_author_cash(ctx):
 
 
 @bot.command(name="hand")
-async def get_author_hand(ctx):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    author = ctx.author
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
+async def get_author_hand(ctx: context):
+    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    
     request = {
         "function": "handpackage",
-        "parameters": [author.display_name, str(SPREADSHEET_ID)],
+        "parameters": [author.display_name, str(spreadsheet_id)],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -592,23 +357,23 @@ async def get_author_hand(ctx):
 
 
 @bot.command(name="channeltest")
-async def get_channel_id(ctx):
+async def get_channel_id(ctx: context):
     await ctx.send(ctx.channel.id)
 
 
 # @bot.command(name='happybirthdayNick')
-# async def get_channel_id(ctx):
+# async def get_channel_id(ctx: context):
 #     await ctx.send("Happy birthday, Nick!")
 
 
 @bot.command(name="hidden_bid")
-async def hidden_bid(ctx):
+async def hidden_bid(ctx: context):
     xinstance = get_instance_by_channel(ctx.channel.id)
     if xinstance is None:
         await ctx.send("Please use this command in a game thread.")
         return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
+    spreadsheet_id = xinstance[1]
+    deployment_id = xinstance[2]
     await ctx.author.send("Please enter your bid:")
 
     def check(m):
@@ -622,12 +387,6 @@ async def hidden_bid(ctx):
         # Access the response and the original channel name
         user_response = response.content
 
-        # Start the background task to handle the user's response asynchronously
-        SCOPES = [
-            "https://www.googleapis.com/auth/script.projects",
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/script.external_request",
-        ]
         # set up credentials
         creds = None
         if os.path.exists("token.json"):
@@ -652,10 +411,10 @@ async def hidden_bid(ctx):
                 ctx.author.display_name,
                 user_response,
                 "Callsource - python",
-                str(SPREADSHEET_ID),
+                str(spreadsheet_id),
             ],
         }
-        response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+        response = service.scripts().run(body=request, scriptId=deployment_id).execute()
         if "error" in response:
             error = response["error"]
             print("Apps Script execution error:")
@@ -669,18 +428,14 @@ async def hidden_bid(ctx):
 
 
 @bot.command(name="once_around")
-async def once_around(ctx):
+async def once_around(ctx: context):
     xinstance = get_instance_by_channel(ctx.channel.id)
     if xinstance is None:
         await ctx.send("Please use this command in a game thread.")
         return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
+    spreadsheet_id = xinstance[1]
+    deployment_id = xinstance[2]
+    
     # set up credentials
     creds = None
     if os.path.exists("token.json"):
@@ -704,10 +459,10 @@ async def once_around(ctx):
         "parameters": [
             ctx.message.content.split(" ", 1)[1],
             ctx.author.display_name,
-            str(SPREADSHEET_ID),
+            str(spreadsheet_id),
         ],
     }
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -718,18 +473,14 @@ async def once_around(ctx):
 
 
 @bot.command(name="owned")
-async def owned(ctx):
+async def owned(ctx: context):
     xinstance = get_instance_by_channel(ctx.channel.id)
     if xinstance is None:
         await ctx.send("Please use this command in a game thread.")
         return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
+    spreadsheet_id = xinstance[1]
+    deployment_id = xinstance[2]
+    
     # set up credentials
     creds = None
     if os.path.exists("token.json"):
@@ -748,8 +499,8 @@ async def owned(ctx):
 
     # run the script function
 
-    request = {"function": "sendOwnedTable", "parameters": [str(SPREADSHEET_ID)]}
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    request = {"function": "sendOwnedTable", "parameters": [str(spreadsheet_id)]}
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
@@ -771,18 +522,14 @@ async def owned(ctx):
 
 
 @bot.command(name="round")
-async def submit_card_apps_script_function(ctx):
+async def submit_card_apps_script_function(ctx: context):
     xinstance = get_instance_by_channel(ctx.channel.id)
     if xinstance is None:
         await ctx.send("Please use this command in a game thread.")
         return
-    SPREADSHEET_ID = xinstance[1]
-    DEPLOYMENT_ID = xinstance[2]
-    SCOPES = [
-        "https://www.googleapis.com/auth/script.projects",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/script.external_request",
-    ]
+    spreadsheet_id = xinstance[1]
+    deployment_id = xinstance[2]
+    
     # set up credentials
     creds = None
     if os.path.exists("token.json"):
@@ -801,8 +548,8 @@ async def submit_card_apps_script_function(ctx):
 
     # run the script function
 
-    request = {"function": "sendRoundTable", "parameters": [str(SPREADSHEET_ID)]}
-    response = service.scripts().run(body=request, scriptId=DEPLOYMENT_ID).execute()
+    request = {"function": "sendRoundTable", "parameters": [str(spreadsheet_id)]}
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
         print("Apps Script execution error:")
