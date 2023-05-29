@@ -34,7 +34,7 @@ def create_image(links, xnumbers):
     "Look up card images and stitch them together with numbers underneath."
     im = []
     for index, link in enumerate(links):
-        response = requests.get(link)
+        response = requests.get(link, timeout=1)
         im.append(Image.open(BytesIO(response.content)))
 
     total_width = sum(image.width for image in im)
