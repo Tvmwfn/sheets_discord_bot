@@ -1,6 +1,7 @@
 import os
 import asyncio
 import csv
+import logging
 from io import BytesIO
 import discord
 import requests
@@ -334,11 +335,12 @@ async def get_author_hand(ctx: context):
     response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
         error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
+        logging.error("Apps Script execution error:" + "\n    " +\
+                      # f'    Error message: {error["message"]}' + "\n    " + \
+                      # f'    Error details: {error["details"]}' + "\n    " + \
+                      "\n    ".join([f"{k}: {v}" for k, v in error["details"][0].items()]))
         # You can handle the error or raise an exception as needed
-        await ctx.send(error["message"][0]["errorMessage"])
+        await ctx.send(error["details"][0]["errorMessage"])
         return
 
     elif "response" in response and "result" in response["response"]:
@@ -499,8 +501,17 @@ async def owned(ctx: context):
         await ctx.send("The apps script function seems to have returned garbage.")
         return
 
+    logging.warn(result)
+
     for i in range(1, len(result[0])):
         result[0][i] = " ".join(result[0][i].splitlines())
+
+    try:
+        truncate = int(ctx.message.content.split()[1])
+        result = [[str(cell)[:truncate] for cell in row] for row in result]
+    except Exception: # TODO: Be smarter
+        pass
+        
     asciitable = table2ascii(header=result[0], body=result[1:], first_col_heading=True)
     # print(asciitable)
     await ctx.send(f"```\n{asciitable}\n```")
