@@ -142,6 +142,16 @@ async def call_google_function(ctx, function, parameters):
     return response
 
 
+async def get_result_from_response(ctx, response):
+    if "response" in response and "result" in response["response"]:
+        result = response["response"]["result"]
+    else:
+        await ctx.send("The apps script function seems to have returned garbage.")
+        return
+
+    return result
+
+
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -278,59 +288,23 @@ async def open_bid(ctx: context):
 
 @bot.command(name="cash")
 async def get_author_cash(ctx: context):
-    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
-
-    request = {
-        "function": "cashpackage",
-        "parameters": [ctx.author.display_name, str(spreadsheet_id)],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["message"][0]["errorMessage"])
-        return
-
-    response = call_google_function(
+    response = await call_google_function(
         ctx, "cashpackage", [ctx.author.display_name, "SPREADSHEET_ID"]
     )
 
-    if "response" in response and "result" in response["response"]:
-        result = response["response"]["result"]
-        # print(result)
-    else:
-        await ctx.send("The apps script function seems to have returned garbage.")
-        return
-
-    # embed = discord.Embed(title='Image Gallery', color=discord.Color.blue())
+    result = await get_result_from_response(ctx, response)
 
     await ctx.author.send(result)
 
 
 @bot.command(name="hand")
 async def get_author_hand(ctx: context):
-    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
+    response = await call_google_function(
+        ctx, "handpackage", [ctx.author.display_name, "SPREADSHEET_ID"]
+    )
 
-    request = {
-        "function": "handpackage",
-        "parameters": [ctx.author.display_name, str(spreadsheet_id)],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        await log_error_response(response, ctx)
-        return
+    result = await get_result_from_response(ctx, response)
 
-    elif "response" in response and "result" in response["response"]:
-        result = response["response"]["result"]
-        # print(result)
-    else:
-        await ctx.send("The apps script function seems to have returned garbage.")
-        return
-
-    # embed = discord.Embed(title='Image Gallery', color=discord.Color.blue())
     image_links = result[1]
     xnumbers = result[0]
 
@@ -338,9 +312,6 @@ async def get_author_hand(ctx: context):
         create_image(image_links, xnumbers).save(image_binary, "PNG")
         image_binary.seek(0)
         await ctx.author.send(file=discord.File(fp=image_binary, filename="image.png"))
-
-    # await author.send(embed=embed)
-    # await ctx.send('Image gallery sent to your direct messages!')
 
 
 @bot.command(name="channeltest")
@@ -355,12 +326,10 @@ async def get_channel_id(ctx: context):
 
 @bot.command(name="hidden_bid")
 async def hidden_bid(ctx: context):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
+    if get_instance_by_channel(ctx.channel.id) is None:
         await ctx.send("Please use this command in a game thread.")
         return
-    spreadsheet_id = xinstance[1]
-    deployment_id = xinstance[2]
+
     await ctx.author.send("Please enter your bid:")
 
     def check(m):
@@ -378,101 +347,41 @@ async def hidden_bid(ctx: context):
         await ctx.author.send("Response timeout. Please try again.")
         return
 
-    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
-
-    # run the script function
-
-    request = {
-        "function": "addBid",
-        "parameters": [
+    await call_google_function(
+        ctx,
+        "addBid",
+        [
             ctx.author.display_name,
             user_response,
             "Callsource - python",
-            str(spreadsheet_id),
+            "SPREADSHEET_ID",
         ],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+    )
 
 
 @bot.command(name="once_around")
 async def once_around(ctx: context):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    spreadsheet_id = xinstance[1]
-    deployment_id = xinstance[2]
-
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
-
-    # run the script function
-
-    request = {
-        "function": "submitOnceAroundBid",
-        "parameters": [
+    await call_google_function(
+        ctx,
+        "submitOnceAroundBid",
+        [
             ctx.message.content.split(" ", 1)[1],
             ctx.author.display_name,
-            str(spreadsheet_id),
+            "SPREADSHEET_ID",
         ],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+    )
 
 
 @bot.command(name="owned")
 async def owned(ctx: context):
+    response = await call_google_function(ctx, "sendOwnedTable", ["SPREADSHEET_ID"])
 
-    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
-
-    # run the script function
-
-    request = {"function": "sendOwnedTable", "parameters": [str(spreadsheet_id)]}
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
-    elif "response" in response and "result" in response["response"]:
-        result = response["response"]["result"]
-    else:
-        await ctx.send("The apps script function seems to have returned garbage.")
-        return
-
-    logging.warn(result)
+    result = await get_result_from_response(ctx, response)
 
     for i in range(1, len(result[0])):
         result[0][i] = " ".join(result[0][i].splitlines())
 
+    # Truncate to N characters if invoked as "!owned N"
     try:
         truncate = int(ctx.message.content.split()[1])
         result = [[str(cell)[:truncate] for cell in row] for row in result]
@@ -486,24 +395,10 @@ async def owned(ctx: context):
 
 @bot.command(name="round")
 async def submit_card_apps_script_function(ctx: context):
-    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
+    response = await call_google_function(ctx, "sendRoundTable", ["SPREADSHEET_ID"])
 
-    # run the script function
+    result = await get_response(ctx, response)
 
-    request = {"function": "sendRoundTable", "parameters": [str(spreadsheet_id)]}
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
-    elif "response" in response and "result" in response["response"]:
-        result = response["response"]["result"]
-    else:
-        await ctx.send("The apps script function seems to have returned garbage.")
-        return
     for i in range(1, len(result[0])):
         result[0][i] = " ".join(result[0][i].splitlines())
     result[0][0] = "Round " + str(result[0][0])
