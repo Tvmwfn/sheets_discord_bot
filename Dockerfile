@@ -1,7 +1,4 @@
 FROM python:3.11
-WORKDIR /app
-COPY discord_bot.py /app
-WORKDIR /data
 RUN pip install --upgrade pip \
     pip install google-api-python-client \
     pip install google-auth google-auth-oauthlib google-auth-httplib2 \
@@ -11,4 +8,7 @@ RUN pip install --upgrade pip \
     pip install -U asyncio \
     pip install -U requests \
     pip install -U discord 
+WORKDIR /app
+COPY discord_bot.py /app
+WORKDIR /data
 CMD ["python", "/app/discord_bot.py"]
