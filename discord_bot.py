@@ -128,7 +128,7 @@ async def get_response(service, request, deployment_id, ctx):
     return response
 
 
-async def call_google_function(ctx, function, parameters):
+async def call_apps_script_function(ctx, function, parameters):
     """Calls FUNCTION on sheet determined by CTX with PARAMETERS.
     If the parameter is the context-sensitive spreadsheet_id,
     then use the special string SPREADSHEET_ID and it will be replaced with
@@ -205,7 +205,7 @@ async def run_apps_script_function(ctx: context):
 
 @bot.command(name="submit_card")
 async def submit_card(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         function="button1",
         parameters=[
@@ -219,7 +219,7 @@ async def submit_card(ctx: context):
 
 @bot.command(name="submit_price")
 async def submit_price(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         function="button1",
         parameters=[
@@ -233,7 +233,7 @@ async def submit_price(ctx: context):
 
 @bot.command(name="buy_card")
 async def buy_card(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         function="button1",
         parameters=["X", ctx.author.display_name, "Buy card", "SPREADSHEET_ID"],
@@ -242,7 +242,7 @@ async def buy_card(ctx: context):
 
 @bot.command(name="submit_second")
 async def submit_second(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         function="button1",
         parameters=[
@@ -256,7 +256,7 @@ async def submit_second(ctx: context):
 
 @bot.command(name="pass_card")
 async def pass_card(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         function="button2",
         parameters=[ctx.author.display_name, "Pass on card", "SPREADSHEET_ID"],
@@ -265,7 +265,7 @@ async def pass_card(ctx: context):
 
 @bot.command(name="pass_second")
 async def pass_second(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         function="passSecondInDouble",
         parameters=[ctx.author.display_name, "SPREADSHEET_ID"],
@@ -274,7 +274,7 @@ async def pass_second(ctx: context):
 
 @bot.command(name="open_bid")
 async def open_bid(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         function="addBid",
         parameters=[
@@ -288,7 +288,7 @@ async def open_bid(ctx: context):
 
 @bot.command(name="cash")
 async def get_author_cash(ctx: context):
-    response = await call_google_function(
+    response = await call_apps_script_function(
         ctx, "cashpackage", [ctx.author.display_name, "SPREADSHEET_ID"]
     )
 
@@ -299,7 +299,7 @@ async def get_author_cash(ctx: context):
 
 @bot.command(name="hand")
 async def get_author_hand(ctx: context):
-    response = await call_google_function(
+    response = await call_apps_script_function(
         ctx, "handpackage", [ctx.author.display_name, "SPREADSHEET_ID"]
     )
 
@@ -347,7 +347,7 @@ async def hidden_bid(ctx: context):
         await ctx.author.send("Response timeout. Please try again.")
         return
 
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         "addBid",
         [
@@ -361,7 +361,7 @@ async def hidden_bid(ctx: context):
 
 @bot.command(name="once_around")
 async def once_around(ctx: context):
-    await call_google_function(
+    await call_apps_script_function(
         ctx,
         "submitOnceAroundBid",
         [
@@ -374,7 +374,7 @@ async def once_around(ctx: context):
 
 @bot.command(name="owned")
 async def owned(ctx: context):
-    response = await call_google_function(ctx, "sendOwnedTable", ["SPREADSHEET_ID"])
+    response = await call_apps_script_function(ctx, "sendOwnedTable", ["SPREADSHEET_ID"])
 
     result = await get_result_from_response(ctx, response)
 
@@ -395,7 +395,7 @@ async def owned(ctx: context):
 
 @bot.command(name="round")
 async def submit_card_apps_script_function(ctx: context):
-    response = await call_google_function(ctx, "sendRoundTable", ["SPREADSHEET_ID"])
+    response = await call_apps_script_function(ctx, "sendRoundTable", ["SPREADSHEET_ID"])
 
     result = await get_response(ctx, response)
 
