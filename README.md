@@ -3,5 +3,4 @@
 ## Usage
 
 1. Make sure that `../volume/` exists relative to this dir and that it contains the appropriate files.
-2. Build with `docker-compose build` (or `docker compose build` if using the newer version).
-3. Deploy with `docker-compose up`
+2. Run with `docker-compose up` (appending `--build` to force a rebuild and `-d` to detach as usual).
