@@ -78,7 +78,7 @@ def get_instance_by_channel(channel):
     return None
 
 
-async def connect_to_sheets(ctx: context):
+async def connect_to_sheets(ctx: context, serviceName="script", version="v1"):
     xinstance = get_instance_by_channel(ctx.channel.id)
     if xinstance is None:
         await ctx.send("Please use this command in a game thread.")
@@ -100,7 +100,7 @@ async def connect_to_sheets(ctx: context):
             token.write(creds.to_json())
 
     # create a Google Sheets service
-    service = build("sheets", "v4", credentials=creds)
+    service = build(serviceName, version, credentials=creds)
 
     return spreadsheet_id, deployment_id, service
 
@@ -479,29 +479,7 @@ async def once_around(ctx: context):
 
 @bot.command(name="owned")
 async def owned(ctx: context):
-    # xinstance = get_instance_by_channel(ctx.channel.id)
-    # if xinstance is None:
-    #     await ctx.send("Please use this command in a game thread.")
-    #     return
-    # spreadsheet_id = xinstance[1]
-    # deployment_id = xinstance[2]
-    
-    # # set up credentials
-    # creds = None
-    # if os.path.exists("token.json"):
-    #     creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    # if not creds or not creds.valid:
-    #     if creds and creds.expired and creds.refresh_token:
-    #         creds.refresh(Request())
-    #     else:
-    #         flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-    #         creds = flow.run_local_server(port=0)
-    #     with open("token.json", "w") as token:
-    #         token.write(creds.to_json())
-
-    # # create a Google Sheets service
-    # service = build("script", "v1", credentials=creds)
-
+ 
     spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
 
     # run the script function
