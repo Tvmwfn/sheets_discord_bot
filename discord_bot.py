@@ -20,10 +20,15 @@ from table2ascii import table2ascii #, Alignment, PresetStyle
 
 from typing import TypeAlias
 
+os.chdir("/data")
+
 context: TypeAlias = commands.Context
 
-SECRETS_FILE = "secrets file path"
-BOT_TOKEN = "bot token here"
+# SECRETS_FILE = ""
+
+with open("discord-token", "r", encoding="utf") as file:
+    BOT_TOKEN = file.read().strip("\n")
+
 SCOPES = [
     "https://www.googleapis.com/auth/script.projects",
     "https://www.googleapis.com/auth/spreadsheets",
