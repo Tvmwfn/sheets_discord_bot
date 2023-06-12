@@ -17,9 +17,11 @@ from google.auth.transport.requests import Request
 
 # import google.auth
 # from googleapiclient.errors import HttpError
-from table2ascii import table2ascii #, Alignment, PresetStyle
+from table2ascii import table2ascii  # , Alignment, PresetStyle
 
 from typing import TypeAlias
+
+logging.basicConfig(level=logging.DEBUG)
 
 os.chdir("/data")
 
@@ -35,6 +37,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/script.external_request",
 ]
+
 
 def create_image(links, xnumbers):
     "Look up card images and stitch them together with numbers underneath."
@@ -86,7 +89,7 @@ async def make_google_service(ctx: context, serviceName="script", version="v1"):
         return
     spreadsheet_id = xinstance[1]
     deployment_id = xinstance[2]
-    
+
     # set up credentials
     creds = None
     if os.path.exists("token.json"):
@@ -108,12 +111,14 @@ async def make_google_service(ctx: context, serviceName="script", version="v1"):
 
 async def log_error_response(response, ctx=None):
     error_info = response["error"]
-    logging.error("Apps Script execution error:" + "\n    " +\
-                  # f'    Error message: {error["message"]}' + "\n    " + \
-                  # f'    Error details: {error["details"]}' + "\n    " + \
-                      "\n    ".join([f"{k}: {v}" for k, v in error_info["details"][0].items()]))
     if ctx is not None:
         await ctx.send(error_info["details"][0]["errorMessage"])
+
+    raise Exception(
+        "\nApps Script execution error:"
+        + "\n    "
+        + "\n    ".join([f"{k}: {v}" for k, v in error_info["details"][0].items()])
+    )
 
 
 async def get_response(service, request, deployment_id, ctx):
@@ -122,16 +127,17 @@ async def get_response(service, request, deployment_id, ctx):
         await log_error_response(response, ctx)
     return response
 
+
 async def call_google_function(ctx, function, parameters):
     """Calls FUNCTION on sheet determined by CTX with PARAMETERS.
     If the parameter is the context-sensitive spreadsheet_id,
     then use the special string SPREADSHEET_ID and it will be replaced with
     the appropriate value."""
     spreadsheet_id, deployment_id, service = await make_google_service(ctx)
-    request = {'function': function, 'parameters': parameters}
-    for i, parameter in enumerate(request['parameters']):
+    request = {"function": function, "parameters": parameters}
+    for i, parameter in enumerate(request["parameters"]):
         if parameter == "SPREADSHEET_ID":
-            request['parameters'][i] = str(spreadsheet_id)
+            request["parameters"][i] = str(spreadsheet_id)
     response = await get_response(service, request, deployment_id, ctx)
     return response
 
@@ -141,15 +147,24 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+XSERVER = 1100079094953156658
+GUILD = discord.Object(id=XSERVER)
+
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} has connected to Discord!")
+    await bot.tree.sync(guild=GUILD)
+    logging.info(f"{bot.user.name} has connected to Discord!")
 
 
-@bot.command(name="userid")
+@bot.command(name="userid", description="Output User ID in Python", guild=GUILD)
 async def userid(ctx: context):
-    print(ctx.author.id)
+    logging.info(ctx.author.id)
+
+
+@bot.command(name="guildid")
+async def guildid(ctx):
+    logging.info(ctx.guild.id)
 
 
 @bot.command(name="refreshtoken")
@@ -160,9 +175,9 @@ async def refresh_token(ctx: context):
 
 @bot.command(name="turn")
 async def run_apps_script_function(ctx: context):
-    spreadsheet_id, deployment_id, service = await make_google_service(ctx,
-                                                                     "sheets",
-                                                                     "v4")
+    spreadsheet_id, deployment_id, service = await make_google_service(
+        ctx, "sheets", "v4"
+    )
 
     result = (
         service.spreadsheets()
@@ -180,66 +195,71 @@ async def run_apps_script_function(ctx: context):
 
 @bot.command(name="submit_card")
 async def submit_card(ctx: context):
-    await call_google_function(ctx,
-                         function="button1",
-                         parameters=[
-                             ctx.message.content.split(" ", 1)[1],
-                             ctx.author.display_name,
-                             "Submit card",
-                             "SPREADSHEET_ID"
-                         ])
+    await call_google_function(
+        ctx,
+        function="button1",
+        parameters=[
+            ctx.message.content.split(" ", 1)[1],
+            ctx.author.display_name,
+            "Submit card",
+            "SPREADSHEET_ID",
+        ],
+    )
 
 
 @bot.command(name="submit_price")
 async def submit_price(ctx: context):
-    await call_google_function(ctx,
-                               function="button1",
-                               parameters = [
-                                   ctx.message.content.split(" ", 1)[1],
-                                   ctx.author.display_name,
-                                   "Submit festpreis",
-                                   "SPREADSHEET_ID"
-                               ])
+    await call_google_function(
+        ctx,
+        function="button1",
+        parameters=[
+            ctx.message.content.split(" ", 1)[1],
+            ctx.author.display_name,
+            "Submit festpreis",
+            "SPREADSHEET_ID",
+        ],
+    )
 
 
 @bot.command(name="buy_card")
 async def buy_card(ctx: context):
-    await call_google_function(ctx,
-                               function="button1",
-                               parameters=["X",
-                                           ctx.author.display_name,
-                                           "Buy card",
-                                           "SPREADSHEET_ID"
-                                           ])
+    await call_google_function(
+        ctx,
+        function="button1",
+        parameters=["X", ctx.author.display_name, "Buy card", "SPREADSHEET_ID"],
+    )
 
 
 @bot.command(name="submit_second")
 async def submit_second(ctx: context):
-    await call_google_function(ctx,
-                               function="button1",
-                               parameters=[
-                                   ctx.message.content.split(" ", 1)[1],
-                                   ctx.author.display_name,
-                                   "Submit second card",
-                                   "SPREADSHEET_ID",
-                               ])
+    await call_google_function(
+        ctx,
+        function="button1",
+        parameters=[
+            ctx.message.content.split(" ", 1)[1],
+            ctx.author.display_name,
+            "Submit second card",
+            "SPREADSHEET_ID",
+        ],
+    )
 
 
 @bot.command(name="pass_card")
 async def pass_card(ctx: context):
-    await call_google_function(ctx,
-                               function="button2",
-                               parameters=[ctx.author.display_name,
-                                           "Pass on card",
-                                           "SPREADSHEET_ID"])
+    await call_google_function(
+        ctx,
+        function="button2",
+        parameters=[ctx.author.display_name, "Pass on card", "SPREADSHEET_ID"],
+    )
 
 
 @bot.command(name="pass_second")
 async def pass_second(ctx: context):
-    await call_google_function(ctx,
-                               function="passSecondInDouble",
-                               parameters=[ctx.author.display_name,
-                                           "SPREADSHEET_ID"])
+    await call_google_function(
+        ctx,
+        function="passSecondInDouble",
+        parameters=[ctx.author.display_name, "SPREADSHEET_ID"],
+    )
 
 
 @bot.command(name="open_bid")
@@ -252,13 +272,14 @@ async def open_bid(ctx: context):
             ctx.message.content.split(" ", 1)[1],
             "Callsource - python",
             "SPREADSHEET_ID",
-        ])
+        ],
+    )
 
 
 @bot.command(name="cash")
 async def get_author_cash(ctx: context):
     spreadsheet_id, deployment_id, service = await make_google_service(ctx)
-    
+
     request = {
         "function": "cashpackage",
         "parameters": [ctx.author.display_name, str(spreadsheet_id)],
@@ -273,7 +294,11 @@ async def get_author_cash(ctx: context):
         await ctx.send(error["message"][0]["errorMessage"])
         return
 
-    elif "response" in response and "result" in response["response"]:
+    response = call_google_function(
+        ctx, "cashpackage", [ctx.author.display_name, "SPREADSHEET_ID"]
+    )
+
+    if "response" in response and "result" in response["response"]:
         result = response["response"]["result"]
         # print(result)
     else:
@@ -288,7 +313,7 @@ async def get_author_cash(ctx: context):
 @bot.command(name="hand")
 async def get_author_hand(ctx: context):
     spreadsheet_id, deployment_id, service = await make_google_service(ctx)
-    
+
     request = {
         "function": "handpackage",
         "parameters": [ctx.author.display_name, str(spreadsheet_id)],
@@ -384,7 +409,7 @@ async def once_around(ctx: context):
         return
     spreadsheet_id = xinstance[1]
     deployment_id = xinstance[2]
-    
+
     # set up credentials
     creds = None
     if os.path.exists("token.json"):
@@ -423,7 +448,7 @@ async def once_around(ctx: context):
 
 @bot.command(name="owned")
 async def owned(ctx: context):
- 
+
     spreadsheet_id, deployment_id, service = await make_google_service(ctx)
 
     # run the script function
@@ -451,9 +476,9 @@ async def owned(ctx: context):
     try:
         truncate = int(ctx.message.content.split()[1])
         result = [[str(cell)[:truncate] for cell in row] for row in result]
-    except Exception: # TODO: Be smarter
+    except Exception:  # TODO: Be smarter
         pass
-        
+
     asciitable = table2ascii(header=result[0], body=result[1:], first_col_heading=True)
     # print(asciitable)
     await ctx.send(f"```\n{asciitable}\n```")
