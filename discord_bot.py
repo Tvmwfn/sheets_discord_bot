@@ -160,7 +160,9 @@ async def refresh_token(ctx: context):
 
 @bot.command(name="turn")
 async def run_apps_script_function(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx,
+                                                                     "sheets",
+                                                                     "v4")
 
     result = (
         service.spreadsheets()
@@ -173,7 +175,7 @@ async def run_apps_script_function(ctx: context):
         response = "No data found."
     else:
         response = values[0][0]
-    await ctx.send(response)
+    await ctx.reply(response)
 
 
 @bot.command(name="submit_card")
