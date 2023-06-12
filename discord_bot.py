@@ -79,7 +79,7 @@ def get_instance_by_channel(channel):
     return None
 
 
-async def connect_to_sheets(ctx: context, serviceName="script", version="v1"):
+async def make_google_service(ctx: context, serviceName="script", version="v1"):
     xinstance = get_instance_by_channel(ctx.channel.id)
     if xinstance is None:
         await ctx.send("Please use this command in a game thread.")
@@ -127,7 +127,7 @@ async def call_google_function(ctx, function, parameters):
     If the parameter is the context-sensitive spreadsheet_id,
     then use the special string SPREADSHEET_ID and it will be replaced with
     the appropriate value."""
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
     request = {'function': function, 'parameters': parameters}
     for i, parameter in enumerate(request['parameters']):
         if parameter == "SPREADSHEET_ID":
@@ -160,7 +160,7 @@ async def refresh_token(ctx: context):
 
 @bot.command(name="turn")
 async def run_apps_script_function(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx,
+    spreadsheet_id, deployment_id, service = await make_google_service(ctx,
                                                                      "sheets",
                                                                      "v4")
 
@@ -257,7 +257,7 @@ async def open_bid(ctx: context):
 
 @bot.command(name="cash")
 async def get_author_cash(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
     
     request = {
         "function": "cashpackage",
@@ -287,7 +287,7 @@ async def get_author_cash(ctx: context):
 
 @bot.command(name="hand")
 async def get_author_hand(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
     
     request = {
         "function": "handpackage",
@@ -353,7 +353,7 @@ async def hidden_bid(ctx: context):
         await ctx.author.send("Response timeout. Please try again.")
         return
 
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
 
     # run the script function
 
@@ -424,7 +424,7 @@ async def once_around(ctx: context):
 @bot.command(name="owned")
 async def owned(ctx: context):
  
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
 
     # run the script function
 
@@ -461,7 +461,7 @@ async def owned(ctx: context):
 
 @bot.command(name="round")
 async def submit_card_apps_script_function(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await make_google_service(ctx)
 
     # run the script function
 
