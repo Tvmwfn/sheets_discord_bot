@@ -130,7 +130,7 @@ async def refresh_token(ctx: context):
 
 @bot.command(name="turn")
 async def run_apps_script_function(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
 
     result = (
         service.spreadsheets()
@@ -148,7 +148,7 @@ async def run_apps_script_function(ctx: context):
 
 @bot.command(name="submit_card")
 async def submit_card(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     request = {
         "function": "button1",
         "parameters": [
@@ -172,7 +172,7 @@ async def submit_card(ctx: context):
 
 @bot.command(name="submit_price")
 async def submit_price(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "button1",
@@ -195,7 +195,7 @@ async def submit_price(ctx: context):
 
 @bot.command(name="buy_card")
 async def buy_card(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "button1",
@@ -213,7 +213,7 @@ async def buy_card(ctx: context):
 
 @bot.command(name="submit_second")
 async def submit_second(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "button1",
@@ -236,7 +236,7 @@ async def submit_second(ctx: context):
 
 @bot.command(name="pass_card")
 async def pass_card(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "button2",
@@ -254,7 +254,7 @@ async def pass_card(ctx: context):
 
 @bot.command(name="pass_second")
 async def pass_second(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "passSecondInDouble",
@@ -272,7 +272,7 @@ async def pass_second(ctx: context):
 
 @bot.command(name="open_bid")
 async def open_bid(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "addBid",
@@ -295,11 +295,11 @@ async def open_bid(ctx: context):
 
 @bot.command(name="cash")
 async def get_author_cash(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "cashpackage",
-        "parameters": [author.display_name, str(spreadsheet_id)],
+        "parameters": [ctx.author.display_name, str(spreadsheet_id)],
     }
     response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
@@ -320,16 +320,16 @@ async def get_author_cash(ctx: context):
 
     # embed = discord.Embed(title='Image Gallery', color=discord.Color.blue())
 
-    await author.send(result)
+    await ctx.author.send(result)
 
 
 @bot.command(name="hand")
 async def get_author_hand(ctx: context):
-    spreadsheet_id, deployment_id, service = connect_to_sheets(ctx)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
     
     request = {
         "function": "handpackage",
-        "parameters": [author.display_name, str(spreadsheet_id)],
+        "parameters": [ctx.author.display_name, str(spreadsheet_id)],
     }
     response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
@@ -479,28 +479,30 @@ async def once_around(ctx: context):
 
 @bot.command(name="owned")
 async def owned(ctx: context):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    spreadsheet_id = xinstance[1]
-    deployment_id = xinstance[2]
+    # xinstance = get_instance_by_channel(ctx.channel.id)
+    # if xinstance is None:
+    #     await ctx.send("Please use this command in a game thread.")
+    #     return
+    # spreadsheet_id = xinstance[1]
+    # deployment_id = xinstance[2]
     
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
+    # # set up credentials
+    # creds = None
+    # if os.path.exists("token.json"):
+    #     creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    # if not creds or not creds.valid:
+    #     if creds and creds.expired and creds.refresh_token:
+    #         creds.refresh(Request())
+    #     else:
+    #         flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
+    #         creds = flow.run_local_server(port=0)
+    #     with open("token.json", "w") as token:
+    #         token.write(creds.to_json())
 
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
+    # # create a Google Sheets service
+    # service = build("script", "v1", credentials=creds)
+
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
 
     # run the script function
 
