@@ -357,7 +357,7 @@ async def get_author_hand(ctx: context):
     with BytesIO() as image_binary:
         create_image(image_links, xnumbers).save(image_binary, "PNG")
         image_binary.seek(0)
-        await author.send(file=discord.File(fp=image_binary, filename="image.png"))
+        await ctx.author.send(file=discord.File(fp=image_binary, filename="image.png"))
 
     # await author.send(embed=embed)
     # await ctx.send('Image gallery sent to your direct messages!')
