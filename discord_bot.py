@@ -394,44 +394,31 @@ async def hidden_bid(ctx: context):
         # Access the response and the original channel name
         user_response = response.content
 
-        # set up credentials
-        creds = None
-        if os.path.exists("token.json"):
-            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-                creds = flow.run_local_server(port=0)
-            with open("token.json", "w") as token:
-                token.write(creds.to_json())
-
-        # create a Google Sheets service
-        service = build("script", "v1", credentials=creds)
-
-        # run the script function
-
-        request = {
-            "function": "addBid",
-            "parameters": [
-                ctx.author.display_name,
-                user_response,
-                "Callsource - python",
-                str(spreadsheet_id),
-            ],
-        }
-        response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-        if "error" in response:
-            error = response["error"]
-            print("Apps Script execution error:")
-            print(f'Error message: {error["message"]}')
-            print(f'Error details: {error["details"]}')
-            # You can handle the error or raise an exception as needed
-            await ctx.send(error["details"][0]["errorMessage"])
-
     except asyncio.TimeoutError:
         await ctx.author.send("Response timeout. Please try again.")
+        return
+
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+
+    # run the script function
+
+    request = {
+        "function": "addBid",
+        "parameters": [
+            ctx.author.display_name,
+            user_response,
+            "Callsource - python",
+            str(spreadsheet_id),
+        ],
+    }
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
+    if "error" in response:
+        error = response["error"]
+        print("Apps Script execution error:")
+        print(f'Error message: {error["message"]}')
+        print(f'Error details: {error["details"]}')
+        # You can handle the error or raise an exception as needed
+        await ctx.send(error["details"][0]["errorMessage"])
 
 
 @bot.command(name="once_around")
@@ -519,28 +506,7 @@ async def owned(ctx: context):
 
 @bot.command(name="round")
 async def submit_card_apps_script_function(ctx: context):
-    xinstance = get_instance_by_channel(ctx.channel.id)
-    if xinstance is None:
-        await ctx.send("Please use this command in a game thread.")
-        return
-    spreadsheet_id = xinstance[1]
-    deployment_id = xinstance[2]
-    
-    # set up credentials
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    # create a Google Sheets service
-    service = build("script", "v1", credentials=creds)
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
 
     # run the script function
 
