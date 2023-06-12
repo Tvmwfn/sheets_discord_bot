@@ -106,6 +106,35 @@ async def connect_to_sheets(ctx: context, serviceName="script", version="v1"):
     return spreadsheet_id, deployment_id, service
 
 
+async def log_error_response(response, ctx=None):
+    error_info = response["error"]
+    logging.error("Apps Script execution error:" + "\n    " +\
+                  # f'    Error message: {error["message"]}' + "\n    " + \
+                  # f'    Error details: {error["details"]}' + "\n    " + \
+                      "\n    ".join([f"{k}: {v}" for k, v in error_info["details"][0].items()]))
+    if ctx is not None:
+        await ctx.send(error_info["details"][0]["errorMessage"])
+
+
+async def get_response(service, request, deployment_id, ctx):
+    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
+    if "error" in response:
+        await log_error_response(response, ctx)
+    return response
+
+async def call_google_function(ctx, function, parameters):
+    """Calls FUNCTION on sheet determined by CTX with PARAMETERS.
+    If the parameter is the context-sensitive spreadsheet_id,
+    then use the special string SPREADSHEET_ID and it will be replaced with
+    the appropriate value."""
+    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
+    request = {'function': function, 'parameters': parameters}
+    for i, parameter in enumerate(request['parameters']):
+        if parameter == "SPREADSHEET_ID":
+            request['parameters'][i] = str(spreadsheet_id)
+    response = await get_response(service, request, deployment_id, ctx)
+    return response
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -149,149 +178,79 @@ async def run_apps_script_function(ctx: context):
 
 @bot.command(name="submit_card")
 async def submit_card(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
-    request = {
-        "function": "button1",
-        "parameters": [
-            ctx.message.content.split(" ", 1)[1],
-            ctx.author.display_name,
-            "Submit card",
-            str(SPREADSHEET_ID),
-        ],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
-    # else:
-    #     await ctx.send('Test run')
+    await call_google_function(ctx,
+                         function="button1",
+                         parameters=[
+                             ctx.message.content.split(" ", 1)[1],
+                             ctx.author.display_name,
+                             "Submit card",
+                             "SPREADSHEET_ID"
+                         ])
 
 
 @bot.command(name="submit_price")
 async def submit_price(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
-    
-    request = {
-        "function": "button1",
-        "parameters": [
-            ctx.message.content.split(" ", 1)[1],
-            ctx.author.display_name,
-            "Submit festpreis",
-            str(spreadsheet_id),
-        ],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+    await call_google_function(ctx,
+                               function="button1",
+                               parameters = [
+                                   ctx.message.content.split(" ", 1)[1],
+                                   ctx.author.display_name,
+                                   "Submit festpreis",
+                                   "SPREADSHEET_ID"
+                               ])
 
 
 @bot.command(name="buy_card")
 async def buy_card(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
-    
-    request = {
-        "function": "button1",
-        "parameters": ["X", ctx.author.display_name, "Buy card", str(spreadsheet_id)],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+    await call_google_function(ctx,
+                               function="button1",
+                               parameters=["X",
+                                           ctx.author.display_name,
+                                           "Buy card",
+                                           "SPREADSHEET_ID"
+                                           ])
 
 
 @bot.command(name="submit_second")
 async def submit_second(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
-    
-    request = {
-        "function": "button1",
-        "parameters": [
-            ctx.message.content.split(" ", 1)[1],
-            ctx.author.display_name,
-            "Submit second card",
-            str(spreadsheet_id),
-        ],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+    await call_google_function(ctx,
+                               function="button1",
+                               parameters=[
+                                   ctx.message.content.split(" ", 1)[1],
+                                   ctx.author.display_name,
+                                   "Submit second card",
+                                   "SPREADSHEET_ID",
+                               ])
 
 
 @bot.command(name="pass_card")
 async def pass_card(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
-    
-    request = {
-        "function": "button2",
-        "parameters": [ctx.author.display_name, "Pass on card", str(spreadsheet_id)],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+    await call_google_function(ctx,
+                               function="button2",
+                               parameters=[ctx.author.display_name,
+                                           "Pass on card",
+                                           "SPREADSHEET_ID"])
 
 
 @bot.command(name="pass_second")
 async def pass_second(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
-    
-    request = {
-        "function": "passSecondInDouble",
-        "parameters": [ctx.author.display_name, str(spreadsheet_id)],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+    await call_google_function(ctx,
+                               function="passSecondInDouble",
+                               parameters=[ctx.author.display_name,
+                                           "SPREADSHEET_ID"])
 
 
 @bot.command(name="open_bid")
 async def open_bid(ctx: context):
-    spreadsheet_id, deployment_id, service = await connect_to_sheets(ctx)
-    
-    request = {
-        "function": "addBid",
-        "parameters": [
+    await call_google_function(
+        ctx,
+        function="addBid",
+        parameters=[
             ctx.author.display_name,
             ctx.message.content.split(" ", 1)[1],
             "Callsource - python",
-            str(spreadsheet_id),
-        ],
-    }
-    response = service.scripts().run(body=request, scriptId=deployment_id).execute()
-    if "error" in response:
-        error = response["error"]
-        print("Apps Script execution error:")
-        print(f'Error message: {error["message"]}')
-        print(f'Error details: {error["details"]}')
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+            "SPREADSHEET_ID",
+        ])
 
 
 @bot.command(name="cash")
@@ -334,13 +293,7 @@ async def get_author_hand(ctx: context):
     }
     response = service.scripts().run(body=request, scriptId=deployment_id).execute()
     if "error" in response:
-        error = response["error"]
-        logging.error("Apps Script execution error:" + "\n    " +\
-                      # f'    Error message: {error["message"]}' + "\n    " + \
-                      # f'    Error details: {error["details"]}' + "\n    " + \
-                      "\n    ".join([f"{k}: {v}" for k, v in error["details"][0].items()]))
-        # You can handle the error or raise an exception as needed
-        await ctx.send(error["details"][0]["errorMessage"])
+        await log_error_response(response, ctx)
         return
 
     elif "response" in response and "result" in response["response"]:
