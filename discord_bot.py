@@ -184,7 +184,7 @@ async def refresh_token(ctx: context):
 
 
 @bot.command(name="turn")
-async def run_apps_script_function(ctx: context):
+async def get_turn(ctx: context):
     spreadsheet_id, deployment_id, service = await make_google_service(
         ctx, "sheets", "v4"
     )
