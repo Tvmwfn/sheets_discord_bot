@@ -425,15 +425,39 @@ async def owned(ctx: context):
     await ctx.send(f"```\n{asciitable}\n```")
 
 
+abbrevs = {
+    "HOYOS": "AH",
+    "KRUMPÁR": "MK",
+    "CONSTABLE": "JC",
+    "WOU-KI": "WK",
+    "BEKSIŃSKI": "ZB"
+}
+
 @bot.command(name="round")
 async def submit_card_apps_script_function(ctx: context):
     response = await call_apps_script_function(ctx, "sendRoundTable", ["SPREADSHEET_ID"])
 
     result = await get_result_from_response(ctx, response)
 
+    logging.debug(result)
+
+    try:
+        short = bool(ctx.message.content.split()[1])
+    except Exception:
+        short = False
+
+    if short:
+        for i in range(1, len(result)):
+            result[i][0] = str(i)
+
     for i in range(1, len(result[0])):
-        result[0][i] = " ".join(result[0][i].splitlines())
-    result[0][0] = "Round " + str(result[0][0])
+        if not short:
+            result[0][i] = result[0][i].replace("\n", " ")
+        if short:
+            for word, abbrev in abbrevs.items():
+                result[0][i] = result[0][i].replace(word, abbrev)
+
+    result[0][0] = f"R{result[0][0]}" if short else f"Round {result[0][0]}"
     asciitable = table2ascii(header=result[0], body=result[1:], first_col_heading=True)
     await ctx.send(f"```\n{asciitable}\n```")
 
