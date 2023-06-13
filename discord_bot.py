@@ -429,7 +429,7 @@ async def owned(ctx: context):
 async def submit_card_apps_script_function(ctx: context):
     response = await call_apps_script_function(ctx, "sendRoundTable", ["SPREADSHEET_ID"])
 
-    result = await get_response(ctx, response)
+    result = await get_result_from_response(ctx, response)
 
     for i in range(1, len(result[0])):
         result[0][i] = " ".join(result[0][i].splitlines())
