@@ -286,6 +286,38 @@ async def open_bid(ctx: context):
     )
 
 
+@bot.command(name="bid")
+async def bid(ctx: context):
+    response = await call_apps_script_function(
+        ctx,
+        "sendCurrentState",
+        ["SPREADSHEET_ID"]
+    )
+
+    state_dispatch = {
+        1: "choose card for auction",
+        2: once_around,
+        3: submit_price,
+        4: "second card after a double",
+        5: open_bid,
+        6: hidden_bid,
+        7: buy_card,
+        8: "end of game"
+    }
+
+    result = await get_result_from_response(ctx, response)
+
+    logging.debug(result)
+
+    function = state_dispatch[int(result)]
+
+    if isinstance(function, str):
+        await ctx.send("Error: " + function)
+        return
+
+    await function(ctx)
+    
+
 @bot.command(name="cash")
 async def get_author_cash(ctx: context):
     response = await call_apps_script_function(
