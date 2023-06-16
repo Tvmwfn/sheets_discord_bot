@@ -624,6 +624,7 @@ function isIntOrX(value,strictlowerbound,bidder,includeX,sheetid) {
 function checkHiddenAuctionOver(sheetid){  
   var curspreadsheet = SpreadsheetApp.openById(sheetid);
   var statesheet = curspreadsheet.getSheetByName('Game state');
+  var setupsheet = curspreadsheet.getSheetByName('Game setup');
   var curstate = statesheet.getRange("CF1").getValue().toString(); // find the position of the current state
   var numofplayers = parseInt(statesheet.getRange("CH1").getValue().toString()); // get number of players
   var auctioneer = statesheet.getRange(parseInt(curstate),1).getValue().toString().substring(1,2);
