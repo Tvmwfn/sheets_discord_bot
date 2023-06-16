@@ -633,6 +633,20 @@ function checkHiddenAuctionOver(sheetid){
     bids.push(parseInt(statesheet.getRange(parseInt(curstate),2+2*((auctioneer.charCodeAt(0)-65+i)%numofplayers)).getValue().toString()));
   }}
   if(bids.length == numofplayers){
+    if(setupsheet.getRange('B2').getValue().toString() == "Yes"){
+      var names = setupsheet.getRange(4,3,numofplayers,1).getValues().flat();
+      
+      var result = names.map((value, index) => {
+        return [value,bids[index]];
+      }).sort((a, b) => {
+        var aValue = a[1];
+        var bValue = b[1];
+        return bValue - aValue;
+      }).map((value) => {return value[0].concat(" (",value[1],")")
+      }).join(", ");
+
+      sendWebhookMessage("Hidden bids:".concat(" ",result,"."),sheetid);
+    }
   buyCard(auctioneer, String.fromCharCode(findMax(bids,auctioneer,numofplayers)+65),Math.max.apply(null,bids),sheetid)
   }
 }
